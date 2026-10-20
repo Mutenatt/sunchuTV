@@ -14,6 +14,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -260,6 +261,20 @@ public class HomeActivity extends Activity {
         makeFocusable(weatherChip, 1.06f, null);
         weatherChip.setOnClickListener(v -> openWeatherPanel());
         row.addView(weatherChip, wrap());
+
+        // Acceso rápido a la red: a la izquierda de la hora, con el mismo estilo que el chip del clima.
+        ImageView wifi = new ImageView(this);
+        wifi.setImageResource(R.drawable.ic_wifi);
+        wifi.setImageTintList(ColorStateList.valueOf(C_TEXT));
+        wifi.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        wifi.setPadding(dp(13), dp(7), dp(13), dp(7));
+        wifi.setBackground(stateBg(0x3300A8FF, 0x14FFFFFF, 999));
+        wifi.setContentDescription("Red WiFi");
+        makeFocusable(wifi, 1.06f, null);
+        wifi.setOnClickListener(v -> openWifiSettings());
+        LinearLayout.LayoutParams wlp = new LinearLayout.LayoutParams(dp(48), dp(36));
+        wlp.leftMargin = dp(12);
+        row.addView(wifi, wlp);
 
         clock = text("--:--", Fonts.display(this, 600), 22, C_TEXT);
         LinearLayout.LayoutParams clp = wrap();
@@ -711,6 +726,19 @@ public class HomeActivity extends Activity {
             startActivity(web);
         } catch (ActivityNotFoundException e) {
             toast("Este TV no tiene un navegador instalado.");
+        }
+    }
+
+    /** Ajustes de WiFi; si el fabricante no los expone, abre los ajustes generales. */
+    private void openWifiSettings() {
+        try {
+            startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
+        } catch (ActivityNotFoundException | SecurityException e) {
+            try {
+                startActivity(new Intent(Settings.ACTION_SETTINGS));
+            } catch (ActivityNotFoundException | SecurityException e2) {
+                toast("No se pudieron abrir los ajustes de red.");
+            }
         }
     }
 
