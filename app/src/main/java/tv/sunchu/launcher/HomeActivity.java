@@ -53,10 +53,12 @@ public class HomeActivity extends Activity {
     private static final String[] TABS = {"Inicio", "Películas", "Series", "Apps", "System Apps"};
     private static final long WEATHER_EVERY_MS = 30 * 60 * 1000L;
     private static final long ROTATION_MS = 7000;
+    private static final String TOP_KEY = "top_weekly";
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final Map<String, List<Tmdb.Media>> listCache = new HashMap<>();
     private final Map<String, List<Tmdb.Media>> platformCache = new HashMap<>();
+    private final Map<String, Tmdb.Detail> detailCache = new HashMap<>();
     private final List<TextView> tabViews = new ArrayList<>();
 
     private ScrollView scroll;
@@ -69,6 +71,7 @@ public class HomeActivity extends Activity {
     private LinearLayout weatherCard;
     private LinearLayout myListRow;
     private LinearLayout heroButtons;
+    private LinearLayout heroFacts;
     private View firstTile;
 
     private MyList myList;
@@ -303,6 +306,16 @@ public class HomeActivity extends Activity {
         tlp.topMargin = dp(4);
         hero.addView(heroTitle, tlp);
 
+        // Duración y dirección/creación. Alto mínimo fijo para que el hero no salte cuando llegan los datos.
+        heroFacts = new LinearLayout(this);
+        heroFacts.setOrientation(LinearLayout.HORIZONTAL);
+        heroFacts.setGravity(Gravity.CENTER_VERTICAL);
+        heroFacts.setMinimumHeight(dp(24));
+        heroFacts.setVisibility(View.INVISIBLE);
+        LinearLayout.LayoutParams flp = wrap();
+        flp.topMargin = dp(10);
+        hero.addView(heroFacts, flp);
+
         heroOverview = text("Elegí una app o un título para empezar.", Fonts.body(this, 400), 15, C_SOFT);
         heroOverview.setMaxLines(3);
         heroOverview.setEllipsize(TextUtils.TruncateAt.END);
@@ -362,6 +375,7 @@ public class HomeActivity extends Activity {
 
         switch (index) {
             case 0:
+                addTopRail();
                 addAppRail("Mis Aplicaciones", Apps.favorites(all));
                 addMediaRail("Tendencias de la semana", "/trending/all/week", 20, false);
                 addMyListRail();
@@ -450,6 +464,32 @@ public class HomeActivity extends Activity {
         });
     }
 
+    /** Top semanal: lo más visto del mundo con mejor nota, con número de ranking en cada tarjeta. */
+    private void addTopRail() {
+        LinearLayout row = addRail("Top semanal");
+        if (!Tmdb.hasToken()) {
+            row.addView(status("Falta tmdb.token en local.properties."));
+            return;
+        }
+        List<Tmdb.Media> cached = listCache.get(TOP_KEY);
+        if (cached != null) {
+            fillMedia(row, cached, 10, true);
+            return;
+        }
+        TextView loading = status("Cargando…");
+        row.addView(loading);
+        final int gen = railGeneration;
+        Net.async(Tmdb::topWeekly, (list, error) -> {
+            if (gen != railGeneration) return; // el usuario cambió de pestaña
+            if (list == null) {
+                loading.setText("No se pudo cargar: " + Net.explain(error) + ".");
+                return;
+            }
+            listCache.put(TOP_KEY, list);
+            fillMedia(row, list, 10, true);
+        });
+    }
+
     private void fillMedia(LinearLayout row, List<Tmdb.Media> list, int limit, boolean ranked) {
         row.removeAllViews();
         if (list.isEmpty()) {
@@ -522,6 +562,16 @@ public class HomeActivity extends Activity {
             FrameLayout.LayoutParams blp = new FrameLayout.LayoutParams(dp(32), dp(32), Gravity.TOP | Gravity.START);
             blp.setMargins(dp(8), dp(8), 0, 0);
             card.addView(badge, blp);
+            if (m.type.equals("tv")) { // el ranking mezcla películas y series: se distinguen de un vistazo
+                TextView kind = text("Serie", Fonts.body(this, 600), 11, C_SOFT);
+                kind.setPadding(dp(9), dp(3), dp(9), dp(3));
+                kind.setBackground(rounded(0xB305070B, 999));
+                FrameLayout.LayoutParams klp = new FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                        Gravity.TOP | Gravity.END);
+                klp.setMargins(0, dp(8), dp(8), 0);
+                card.addView(kind, klp);
+            }
         }
 
         card.setContentDescription(m.title);
@@ -564,11 +614,16 @@ public class HomeActivity extends Activity {
         btnPlay.setContentDescription("Reproducir");
         btnList.setText(myList.contains(m) ? "✓" : "+");
         heroButtons.setVisibility(View.VISIBLE);
+        heroFacts.setVisibility(View.VISIBLE);
+        renderFacts(detailCache.get(m.key()));
         setBackdrop(Tmdb.img("w1280", m.backdrop));
 
         // Las plataformas se piden con una pequeña demora para no consultar en cada movimiento del foco.
         if (pendingDetails != null) ui.removeCallbacks(pendingDetails);
-        pendingDetails = () -> loadProviders(m, null);
+        pendingDetails = () -> {
+            loadProviders(m, null);
+            loadDetail(m);
+        };
         ui.postDelayed(pendingDetails, 450);
     }
 
@@ -580,6 +635,7 @@ public class HomeActivity extends Activity {
         heroMeta.setVisibility(View.INVISIBLE);
         heroOverview.setVisibility(View.INVISIBLE);
         heroButtons.setVisibility(View.INVISIBLE);
+        heroFacts.setVisibility(View.INVISIBLE);
         startPlatformRotation(a.pkg);
     }
 
@@ -630,7 +686,9 @@ public class HomeActivity extends Activity {
     }
 
     private String metaLine(Tmdb.Media m, List<String> providers) {
-        StringBuilder sb = new StringBuilder(m.type.equals("tv") ? "Serie" : "Película");
+        StringBuilder sb = new StringBuilder();
+        if (m.rank > 0) sb.append("#").append(m.rank).append(" del top   ");
+        sb.append(m.type.equals("tv") ? "Serie" : "Película");
         if (!m.year.isEmpty()) sb.append("   ").append(m.year);
         if (m.vote > 0) sb.append("   ★ ").append(String.format(Locale.US, "%.1f", m.vote));
         if (providers != null && !providers.isEmpty()) {
@@ -657,6 +715,42 @@ public class HomeActivity extends Activity {
             btnPlay.setContentDescription(app != null ? "Ver en " + app.label : "Reproducir");
             if (then != null) then.run();
         });
+    }
+
+    private void loadDetail(Tmdb.Media m) {
+        if (detailCache.containsKey(m.key())) {
+            if (m == currentMedia) renderFacts(detailCache.get(m.key()));
+            return;
+        }
+        Net.async(() -> Tmdb.detail(m), (d, error) -> {
+            if (d == null) return; // sin datos: la fila queda vacía
+            detailCache.put(m.key(), d);
+            if (m == currentMedia) renderFacts(d);
+        });
+    }
+
+    /** Duración | Dirección (o Creación en series). */
+    private void renderFacts(Tmdb.Detail d) {
+        heroFacts.removeAllViews();
+        if (d == null) return;
+        if (!d.duration.isEmpty()) addFact(d.duration, null);
+        if (!d.credit.isEmpty()) addFact(d.credit, d.creditLabel);
+    }
+
+    private void addFact(String value, String label) {
+        if (heroFacts.getChildCount() > 0) {
+            View sep = new View(this);
+            sep.setBackgroundColor(0x2EFFFFFF);
+            LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(dp(1), dp(18));
+            sp.setMargins(dp(16), 0, dp(16), 0);
+            heroFacts.addView(sep, sp);
+        }
+        if (label != null) {
+            LinearLayout.LayoutParams lp = wrap();
+            lp.rightMargin = dp(6);
+            heroFacts.addView(text(label, Fonts.body(this, 500), 13, C_MUTED), lp);
+        }
+        heroFacts.addView(text(value, Fonts.body(this, 600), 16, C_TEXT), wrap());
     }
 
     private Apps.App installedProviderApp() {

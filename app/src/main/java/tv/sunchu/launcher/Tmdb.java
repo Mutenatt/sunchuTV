@@ -7,7 +7,9 @@ import org.json.JSONObject;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +30,9 @@ final class Tmdb {
         String backdrop;  // ruta TMDB, ej. "/abc.jpg"
         String year;
         double vote;
+        int voteCount;    // para filtrar el Top semanal
+        double popularity; // popularidad de TMDB (tendencia), para ordenar el Top semanal
+        int rank;         // posición en el Top semanal (0 = no pertenece); no se guarda en Mi lista
         String originalLanguage; // ISO 639-1, ej. "en", "ja", "ko"
 
         String key() {
@@ -94,6 +99,8 @@ final class Tmdb {
             String date = r.optString(type.equals("tv") ? "first_air_date" : "release_date", "");
             m.year = date.length() >= 4 ? date.substring(0, 4) : "";
             m.vote = r.optDouble("vote_average", 0);
+            m.voteCount = r.optInt("vote_count", 0);
+            m.popularity = r.optDouble("popularity", 0);
             m.originalLanguage = r.optString("original_language", "");
             if (m.backdrop == null || m.title.isEmpty()) continue;
             out.add(m);
@@ -149,6 +156,140 @@ final class Tmdb {
         }
         for (String key : best) if (key != null) return key;
         return null;
+    }
+
+    // ------------------------------------------------------------------ Top semanal
+
+    private static final double TOP_MIN_VOTE = 7.5;
+    private static final int TOP_MIN_VOTES = 1000;
+    private static final int TOP_SIZE = 10;
+
+    /**
+     * Top semanal: lo más en tendencia en el mundo con buena nota, películas y series intercaladas.
+     * TMDB no publica visualizaciones; la tendencia semanal (/trending) es el mejor sustituto de "más visto".
+     */
+    static List<Media> topWeekly() throws Exception {
+        List<Media> pool = new ArrayList<>(list("/trending/all/week"));
+        try {
+            pool.addAll(list("/trending/all/week?page=2")); // más material para que el filtro de nota no deje la fila corta
+        } catch (Exception ignored) {
+            // con la página 1 alcanza
+        }
+        return pickTop(pool);
+    }
+
+    /** Parte pura (sin red): filtra por nota y votos, ordena por popularidad + nota e intercala películas y series. */
+    static List<Media> pickTop(List<Media> pool) {
+        List<Media> distinct = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (Media m : pool) if (seen.add(m.key())) distinct.add(m);
+
+        List<Media> good = new ArrayList<>();
+        for (Media m : distinct) if (m.vote >= TOP_MIN_VOTE && m.voteCount >= TOP_MIN_VOTES) good.add(m);
+        if (good.isEmpty()) good.addAll(distinct); // semana rara: sin filtro de calidad, solo lo más en tendencia
+
+        double maxPop = 1;
+        for (Media m : good) maxPop = Math.max(maxPop, m.popularity);
+        final double mp = maxPop;
+        Comparator<Media> byScore = (a, b) -> Double.compare(score(b, mp), score(a, mp));
+
+        List<Media> movies = new ArrayList<>();
+        List<Media> series = new ArrayList<>();
+        for (Media m : good) (m.type.equals("tv") ? series : movies).add(m);
+        movies.sort(byScore);
+        series.sort(byScore);
+
+        boolean takeMovie = !movies.isEmpty() && (series.isEmpty() || score(movies.get(0), mp) >= score(series.get(0), mp));
+        List<Media> out = new ArrayList<>();
+        int mi = 0;
+        int si = 0;
+        while (out.size() < TOP_SIZE && (mi < movies.size() || si < series.size())) {
+            if (takeMovie && mi < movies.size()) out.add(movies.get(mi++));
+            else if (!takeMovie && si < series.size()) out.add(series.get(si++));
+            else if (mi < movies.size()) out.add(movies.get(mi++));
+            else out.add(series.get(si++));
+            takeMovie = !takeMovie;
+        }
+        for (int i = 0; i < out.size(); i++) out.get(i).rank = i + 1;
+        return out;
+    }
+
+    /** 50 % popularidad relativa + 50 % nota (de 7.5 a 10 se mapea a 0..1). */
+    private static double score(Media m, double maxPop) {
+        double rating = Math.min(1, Math.max(0, (m.vote - TOP_MIN_VOTE) / (10 - TOP_MIN_VOTE)));
+        return 0.5 * (m.popularity / maxPop) + 0.5 * rating;
+    }
+
+    /** Duración y dirección/creación de un título. Se pide al enfocarlo, no al armar la fila. */
+    static final class Detail {
+        String duration = "";    // "2 h 46 min" o "5 temporadas · 47 min/ep"
+        String creditLabel = ""; // "Dirección" o "Creación"
+        String credit = "";      // "Denis Villeneuve"
+    }
+
+    static Detail detail(Media m) throws Exception {
+        JSONObject o = new JSONObject(Net.get(API + "/" + m.type + "/" + m.id
+                + "?language=" + BuildConfig.TMDB_LANG + "&append_to_response=credits", BuildConfig.TMDB_TOKEN));
+        Detail d = new Detail();
+        List<String> names = new ArrayList<>();
+        if (m.type.equals("tv")) {
+            int seasons = o.optInt("number_of_seasons", 0);
+            int episode = 0;
+            JSONArray runs = o.optJSONArray("episode_run_time");
+            if (runs != null && runs.length() > 0) episode = runs.optInt(0, 0);
+            if (episode == 0) {
+                JSONObject last = o.optJSONObject("last_episode_to_air");
+                if (last != null) episode = last.optInt("runtime", 0);
+            }
+            StringBuilder sb = new StringBuilder();
+            if (seasons > 0) sb.append(seasons).append(seasons == 1 ? " temporada" : " temporadas");
+            if (episode > 0) {
+                if (sb.length() > 0) sb.append(" \u00b7 ");
+                sb.append(episode).append(" min/ep");
+            }
+            d.duration = sb.toString();
+            d.creditLabel = "Creaci\u00f3n";
+            JSONArray creators = o.optJSONArray("created_by");
+            if (creators != null) {
+                for (int i = 0; i < creators.length(); i++) {
+                    String n = creators.getJSONObject(i).optString("name", "");
+                    if (!n.isEmpty() && !names.contains(n)) names.add(n);
+                }
+            }
+        } else {
+            d.duration = formatRuntime(o.optInt("runtime", 0));
+            d.creditLabel = "Direcci\u00f3n";
+            JSONObject credits = o.optJSONObject("credits");
+            JSONArray crew = credits == null ? null : credits.optJSONArray("crew");
+            if (crew != null) {
+                for (int i = 0; i < crew.length(); i++) {
+                    JSONObject c = crew.getJSONObject(i);
+                    String n = c.optString("name", "");
+                    if ("Director".equals(c.optString("job")) && !n.isEmpty() && !names.contains(n)) names.add(n);
+                }
+            }
+        }
+        d.credit = joinNames(names);
+        return d;
+    }
+
+    /** 166 -> "2 h 46 min"; 120 -> "2 h"; 45 -> "45 min"; 0 -> "". */
+    static String formatRuntime(int minutes) {
+        if (minutes <= 0) return "";
+        if (minutes < 60) return minutes + " min";
+        int h = minutes / 60;
+        int min = minutes % 60;
+        return min == 0 ? h + " h" : h + " h " + min + " min";
+    }
+
+    /** Hasta tres nombres: "A", "A y B", "A, B y C". */
+    static String joinNames(List<String> names) {
+        int n = Math.min(names.size(), 3);
+        if (n == 0) return "";
+        if (n == 1) return names.get(0);
+        StringBuilder sb = new StringBuilder(names.get(0));
+        for (int i = 1; i < n - 1; i++) sb.append(", ").append(names.get(i));
+        return sb.append(" y ").append(names.get(n - 1)).toString();
     }
 
     private static Map<String, String> providerIdsByPackage;
