@@ -2,6 +2,14 @@ plugins {
     id 'com.android.application'
 }
 
+// Configuración local (no va a git). Ver local.properties.example.
+def localProps = new Properties()
+def localFile = rootProject.file('local.properties')
+if (localFile.exists()) {
+    localFile.withInputStream { localProps.load(it) }
+}
+def prop = { String key, String fallback -> localProps.getProperty(key, fallback).trim() }
+
 android {
     namespace 'tv.sunchu.launcher'
     compileSdk 34
@@ -10,8 +18,19 @@ android {
         applicationId 'tv.sunchu.launcher'
         minSdk 30
         targetSdk 34
-        versionCode 1
-        versionName '0.1.0'
+        versionCode 3
+        versionName '0.3.0'
+
+        buildConfigField 'String', 'TMDB_TOKEN',    "\"${prop('tmdb.token', '')}\""
+        buildConfigField 'String', 'TMDB_LANG',     "\"${prop('tmdb.language', 'es-AR')}\""
+        buildConfigField 'String', 'TMDB_REGION',   "\"${prop('tmdb.region', 'AR')}\""
+        buildConfigField 'String', 'WEATHER_LAT',   "\"${prop('weather.latitude', '-31.3980')}\""
+        buildConfigField 'String', 'WEATHER_LON',   "\"${prop('weather.longitude', '-64.1850')}\""
+        buildConfigField 'String', 'WEATHER_PLACE', "\"${prop('weather.place', 'Cofico')}\""
+    }
+
+    buildFeatures {
+        buildConfig true
     }
 
     buildTypes {

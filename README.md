@@ -1,17 +1,38 @@
-# SunchuTV (etapa 1)
+# SunchuTV (etapa 2)
 
-Launcher para Android TV 11 (API 30). Boot con animación + home con apps instaladas.
+Launcher para Android TV 11 (API 30): apps, películas y series de TMDB, clima de Cofico y protector de pantalla.
 
-## Build
-Abrir la carpeta en Android Studio (Hedgehog o superior), dejar que sincronice Gradle y
-ejecutar Build → Build APK(s). El APK queda en `app/build/outputs/apk/debug/app-debug.apk`.
+## Configuración (local.properties, no va a git)
+Copiá de `local.properties.example` al menos:
 
-## Instalar en el TV
-    .\adb connect 192.168.1.9:5555
-    .\adb install -r app-debug.apk
+    tmdb.token=TU_API_READ_ACCESS_TOKEN
 
-## Probar como launcher
-    .\adb shell cmd package set-home-activity tv.sunchu.launcher/.HomeActivity
+Opcionales: `tmdb.language`, `tmdb.region`, `weather.latitude`, `weather.longitude`, `weather.place`.
 
-Para volver al home original:
-    .\adb shell cmd package set-home-activity com.google.android.tvlauncher/.MainActivity
+## Instalar
+Run (▶) en Android Studio con el TV seleccionado, o:
+
+    .\adb install -r app\build\outputs\apk\debug\app-debug.apk
+
+## Protector de pantalla
+En el TV: Ajustes > Preferencias del dispositivo > Protector de pantalla > SunchuTV.
+Probarlo ya mismo:
+
+    .\adb shell am start -n com.android.systemui/.Somnambulator
+
+## Usarlo como launcher (reversible)
+1. Anotá el launcher actual:
+
+       .\adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME
+
+2. Activá SunchuTV:
+
+       .\adb shell cmd package set-home-activity tv.sunchu.launcher/.HomeActivity
+
+3. Para volver, usá el paquete/actividad que anotaste en el paso 1:
+
+       .\adb shell cmd package set-home-activity com.google.android.tvlauncher/.MainActivity
+
+## Créditos
+Datos de películas y series: TMDB (esta app usa la API de TMDB pero no está avalada ni certificada por TMDB).
+Clima: Open-Meteo. Fuentes: Outfit y Plus Jakarta Sans (SIL Open Font License, ver assets/fonts).

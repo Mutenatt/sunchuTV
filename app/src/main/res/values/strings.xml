@@ -4,5 +4,6 @@
     <string name="brand">SunchuTV</string>
     <string name="hero_welcome">Bienvenido a SunchuTV</string>
     <string name="hero_sub">Elegí una app para empezar</string>
-    <string name="section_apps">Tus apps</string>
+    <string name="btn_play">Reproducir Ahora</string>
+    <string name="btn_trailer">Ver Tráiler</string>
 </resources>

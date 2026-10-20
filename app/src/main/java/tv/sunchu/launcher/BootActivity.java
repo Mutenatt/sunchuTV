@@ -1,6 +1,7 @@
 package tv.sunchu.launcher;
 
 import android.app.Activity;
+import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.KeyEvent;
@@ -18,6 +19,7 @@ public class BootActivity extends Activity {
         setContentView(R.layout.activity_boot);
 
         VideoView video = findViewById(R.id.bootVideo);
+        video.setAudioFocusRequest(AudioManager.AUDIOFOCUS_NONE); // sin sonido: no interrumpe otro audio
         video.setOnCompletionListener(mp -> finishBoot());
         video.setOnErrorListener((mp, what, extra) -> {
             finishBoot();
@@ -36,6 +38,7 @@ public class BootActivity extends Activity {
         return true;
     }
 
+    @SuppressWarnings("deprecation") // overrideActivityTransition requiere API 34; el TV es API 30
     private void finishBoot() {
         if (finished) return;
         finished = true;
