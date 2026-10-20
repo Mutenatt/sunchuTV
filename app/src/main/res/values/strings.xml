@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SunchuTV</string>
+    <string name="brand">SunchuTV</string>
+    <string name="hero_welcome">Bienvenido a SunchuTV</string>
+    <string name="hero_sub">Elegí una app para empezar</string>
+    <string name="section_apps">Tus apps</string>
+</resources>
