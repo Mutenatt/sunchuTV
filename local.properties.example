@@ -1,3 +1,5 @@
 # Copiá estas líneas a tu local.properties (NO subas ese archivo a git).
 # sdk.dir lo genera Android Studio; no lo borres.
 tmdb.token=PEGA_AQUI_EL_READ_ACCESS_TOKEN
+# Opcional: sitio al que abre el botón del globo (por defecto https://framextv.cc)
+# where.url=https://framextv.cc

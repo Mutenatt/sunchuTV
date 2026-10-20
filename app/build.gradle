@@ -27,6 +27,7 @@ android {
         buildConfigField 'String', 'WEATHER_LAT',   "\"${prop('weather.latitude', '-31.3980')}\""
         buildConfigField 'String', 'WEATHER_LON',   "\"${prop('weather.longitude', '-64.1850')}\""
         buildConfigField 'String', 'WEATHER_PLACE', "\"${prop('weather.place', 'Cofico')}\""
+        buildConfigField 'String', 'WHERE_URL',     "\"${prop('where.url', 'https://framextv.cc')}\""
     }
 
     buildFeatures {

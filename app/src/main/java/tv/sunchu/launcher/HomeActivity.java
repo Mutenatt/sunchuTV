@@ -62,6 +62,7 @@ public class HomeActivity extends Activity {
     private ImageView heroBackdrop;
     private LinearLayout railsContainer;
     private TextView heroMeta, heroTitle, heroOverview, btnPlay, btnTrailer, btnList;
+    private View btnWhere;
     private TextView weatherChip, clock;
     private FrameLayout weatherPanel;
     private LinearLayout weatherCard;
@@ -308,6 +309,11 @@ public class HomeActivity extends Activity {
         btnTrailer.setOnClickListener(v -> openTrailer());
         btnList.setOnClickListener(v -> toggleMyList());
         buttons.addView(btnPlay, wrap());
+        btnWhere = iconButton(R.drawable.ic_globe, "Dónde ver");
+        btnWhere.setOnClickListener(v -> openWhere());
+        LinearLayout.LayoutParams gw = new LinearLayout.LayoutParams(dp(72), ViewGroup.LayoutParams.MATCH_PARENT);
+        gw.leftMargin = dp(14);
+        buttons.addView(btnWhere, gw);
         LinearLayout.LayoutParams g1 = wrap();
         g1.leftMargin = dp(14);
         buttons.addView(btnTrailer, g1);
@@ -692,6 +698,22 @@ public class HomeActivity extends Activity {
         });
     }
 
+    /** Globo: abre en el navegador la búsqueda del título en el sitio de where.url. */
+    private void openWhere() {
+        Tmdb.Media m = currentMedia;
+        if (m == null) {
+            toast("Elegí una película o serie de las filas.");
+            return;
+        }
+        Intent web = new Intent(Intent.ACTION_VIEW, Uri.parse(WhereToWatch.searchUrl(m)))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            startActivity(web);
+        } catch (ActivityNotFoundException e) {
+            toast("Este TV no tiene un navegador instalado.");
+        }
+    }
+
     private void toggleMyList() {
         Tmdb.Media m = currentMedia;
         if (m == null) {
@@ -835,6 +857,21 @@ public class HomeActivity extends Activity {
         b.setTextColor(new ColorStateList(
                 new int[][]{{android.R.attr.state_focused}, {}},
                 new int[]{C_BG, C_TEXT}));
+        makeFocusable(b, 1.05f, null);
+        return b;
+    }
+
+    /** Botón de solo ícono con el mismo foco que pillButton: fondo blanco e ícono oscuro. */
+    private ImageView iconButton(int drawableRes, String description) {
+        ImageView b = new ImageView(this);
+        b.setImageResource(drawableRes);
+        b.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        b.setPadding(dp(25), dp(10), dp(25), dp(10));
+        b.setBackground(stateBg(0xFFFFFFFF, C_BUTTON, 12));
+        b.setImageTintList(new ColorStateList(
+                new int[][]{{android.R.attr.state_focused}, {}},
+                new int[]{C_BG, C_TEXT}));
+        b.setContentDescription(description);
         makeFocusable(b, 1.05f, null);
         return b;
     }

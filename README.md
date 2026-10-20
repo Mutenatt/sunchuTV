@@ -7,7 +7,7 @@ Copiá de `local.properties.example` al menos:
 
     tmdb.token=TU_API_READ_ACCESS_TOKEN
 
-Opcionales: `tmdb.language`, `tmdb.region`, `weather.latitude`, `weather.longitude`, `weather.place`.
+Opcionales: `tmdb.language`, `tmdb.region`, `weather.latitude`, `weather.longitude`, `weather.place`, `where.url` (sitio que abre el botón del globo).
 
 ## Instalar
 Run (▶) en Android Studio con el TV seleccionado, o:

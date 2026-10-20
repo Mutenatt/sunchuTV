@@ -23,6 +23,7 @@ final class Tmdb {
         int id;
         String type;      // "movie" o "tv"
         String title;
+        String originalTitle; // título en su idioma original, ej. "Spider-Man: Brand New Day"
         String overview;
         String backdrop;  // ruta TMDB, ej. "/abc.jpg"
         String year;
@@ -36,6 +37,7 @@ final class Tmdb {
         JSONObject toJson() throws JSONException {
             return new JSONObject()
                     .put("id", id).put("type", type).put("title", title)
+                    .put("otitle", originalTitle == null ? "" : originalTitle)
                     .put("overview", overview).put("backdrop", backdrop)
                     .put("year", year).put("vote", vote)
                     .put("lang", originalLanguage == null ? "" : originalLanguage);
@@ -46,6 +48,7 @@ final class Tmdb {
             m.id = o.optInt("id");
             m.type = o.optString("type", "movie");
             m.title = o.optString("title", "");
+            m.originalTitle = o.optString("otitle", ""); // Mi lista guardada antes de este cambio: queda vacío
             m.overview = o.optString("overview", "");
             m.backdrop = o.optString("backdrop", null);
             m.year = o.optString("year", "");
@@ -85,6 +88,7 @@ final class Tmdb {
             m.id = r.getInt("id");
             m.type = type;
             m.title = type.equals("tv") ? r.optString("name", "") : r.optString("title", "");
+            m.originalTitle = type.equals("tv") ? r.optString("original_name", "") : r.optString("original_title", "");
             m.overview = r.optString("overview", "");
             m.backdrop = optPath(r, "backdrop_path");
             String date = r.optString(type.equals("tv") ? "first_air_date" : "release_date", "");
