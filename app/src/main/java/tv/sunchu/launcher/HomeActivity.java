@@ -61,8 +61,8 @@ public class HomeActivity extends Activity {
     private ScrollView scroll;
     private ImageView heroBackdrop;
     private LinearLayout railsContainer;
-    private TextView heroMeta, heroTitle, heroOverview, btnPlay, btnTrailer, btnList;
-    private View btnWhere;
+    private TextView heroMeta, heroTitle, heroOverview, btnTrailer, btnList;
+    private View btnPlay, btnWhere;
     private TextView weatherChip, clock;
     private FrameLayout weatherPanel;
     private LinearLayout weatherCard;
@@ -302,13 +302,13 @@ public class HomeActivity extends Activity {
         buttons.setOrientation(LinearLayout.HORIZONTAL);
         buttons.setVisibility(View.INVISIBLE); // se muestran al enfocar un título
         buttons.setClipChildren(false);
-        btnPlay = pillButton("▶  Reproducir Ahora");
+        btnPlay = iconButton(R.drawable.ic_play, "Reproducir");
         btnTrailer = pillButton("Ver Tráiler");
         btnList = pillButton("+");
         btnPlay.setOnClickListener(v -> playCurrent());
         btnTrailer.setOnClickListener(v -> openTrailer());
         btnList.setOnClickListener(v -> toggleMyList());
-        buttons.addView(btnPlay, wrap());
+        buttons.addView(btnPlay, new LinearLayout.LayoutParams(dp(72), ViewGroup.LayoutParams.MATCH_PARENT));
         btnWhere = iconButton(R.drawable.ic_globe, "Dónde ver");
         btnWhere.setOnClickListener(v -> openWhere());
         LinearLayout.LayoutParams gw = new LinearLayout.LayoutParams(dp(72), ViewGroup.LayoutParams.MATCH_PARENT);
@@ -546,7 +546,7 @@ public class HomeActivity extends Activity {
         heroTitle.setText(m.title);
         heroOverview.setText(m.overview.isEmpty() ? "Sin sinopsis en español." : m.overview);
         heroMeta.setText(metaLine(m, null));
-        btnPlay.setText("▶  Reproducir Ahora");
+        btnPlay.setContentDescription("Reproducir");
         btnList.setText(myList.contains(m) ? "✓" : "+");
         heroButtons.setVisibility(View.VISIBLE);
         setBackdrop(Tmdb.img("w1280", m.backdrop));
@@ -639,7 +639,7 @@ public class HomeActivity extends Activity {
             currentProviders = list == null ? Collections.emptyList() : list;
             heroMeta.setText(metaLine(m, currentProviders));
             Apps.App app = installedProviderApp();
-            btnPlay.setText(app != null ? "▶  Ver en " + app.label : "▶  Reproducir Ahora");
+            btnPlay.setContentDescription(app != null ? "Ver en " + app.label : "Reproducir");
             if (then != null) then.run();
         });
     }
