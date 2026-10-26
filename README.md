@@ -2,8 +2,8 @@
 
 Launcher para Android TV 11 (API 30): apps, películas y series de TMDB, clima de Cofico y protector de pantalla.
 
-## Configuración (local.properties, no va a git)
-Copiá de `local.properties.example` al menos:
+## Configuración (local.properties)
+
 
     tmdb.token=TU_API_READ_ACCESS_TOKEN
 
@@ -16,7 +16,6 @@ Run (▶) en Android Studio con el TV seleccionado, o:
 
 ## Protector de pantalla
 En el TV: Ajustes > Preferencias del dispositivo > Protector de pantalla > SunchuTV.
-Probarlo ya mismo:
 
     .\adb shell am start -n com.android.systemui/.Somnambulator
 
